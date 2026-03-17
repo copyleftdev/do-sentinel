@@ -1,5 +1,6 @@
 mod collector;
 mod config;
+mod enrichment;
 mod store;
 
 use clap::Parser;
@@ -22,10 +23,14 @@ use tokio_rustls::TlsAcceptor;
 struct AppState {
     latest_output: RwLock<String>,
     store: Option<store::MetricStore>,
+    vt_cache: Option<Arc<RwLock<std::collections::HashMap<String, enrichment::virustotal::VtIpReport>>>>,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // Install rustls crypto provider before any TLS usage (reqwest + tokio-rustls)
+    let _ = tokio_rustls::rustls::crypto::ring::default_provider().install_default();
+
     let cfg = Config::parse();
 
     if cfg.debug {
@@ -40,9 +45,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Some(store::MetricStore::open(&cfg.data_dir)?)
     };
 
+    // VT enricher setup
+    let (vt_tx, vt_cache) = if let Some(ref api_key) = cfg.vt_api_key {
+        let enricher = enrichment::virustotal::VtEnricher::new(api_key.clone(), cfg.debug);
+        let cache = enricher.cache_handle();
+        let (tx, rx) = tokio::sync::mpsc::channel::<Vec<(String, u64)>>(16);
+        tokio::spawn(async move { enricher.run(rx).await });
+        if cfg.debug {
+            eprintln!("[sentinel] VirusTotal enrichment enabled");
+        }
+        (Some(tx), Some(cache))
+    } else {
+        (None, None)
+    };
+
     let state = Arc::new(AppState {
         latest_output: RwLock::new(String::new()),
         store: db,
+        vt_cache: vt_cache,
     });
 
     // Build collectors
@@ -82,12 +102,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 }
             }
 
+            // Feed unique remote peer IPs to VT enricher
+            if let Some(ref tx) = vt_tx {
+                let mut ip_counts: Vec<(String, u64)> = Vec::new();
+                for m in &all_metrics {
+                    if m.name == "sentinel_remote_peer_connections" {
+                        for s in &m.samples {
+                            if let Some(ip) = s.labels.get("remote_ip") {
+                                ip_counts.push((ip.clone(), s.value as u64));
+                            }
+                        }
+                    }
+                }
+                if !ip_counts.is_empty() {
+                    let _ = tx.try_send(ip_counts);
+                }
+            }
+
+            // Append VT enrichment metrics
+            if let Some(ref vt_cache) = collect_state.vt_cache {
+                let mut vt_metrics = enrichment::virustotal::vt_cache_to_metrics(vt_cache);
+                all_metrics.append(&mut vt_metrics);
+            }
+
             let elapsed = start.elapsed();
             if debug {
                 eprintln!("[sentinel] collected {} metrics in {:?}", all_metrics.len(), elapsed);
             }
 
-            // Store to RocksDB
+            // Store to sled
             if let Some(ref db) = collect_state.store {
                 if let Err(e) = db.store_metrics(&all_metrics) {
                     eprintln!("[sentinel] store error: {}", e);

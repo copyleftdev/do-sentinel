@@ -43,4 +43,8 @@ pub struct Config {
     /// TLS private key file (PEM), e.g. privkey.pem
     #[arg(long)]
     pub tls_key: Option<String>,
+
+    /// VirusTotal API key (or set VT_API_KEY env var)
+    #[arg(long, env = "VT_API_KEY")]
+    pub vt_api_key: Option<String>,
 }

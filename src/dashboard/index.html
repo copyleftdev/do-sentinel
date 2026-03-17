@@ -193,6 +193,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
   <button onclick="nav('network')" data-nav="network" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Network</button>
   <button onclick="nav('forensics')" data-nav="forensics" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Forensics</button>
   <button onclick="nav('auth')" data-nav="auth" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Auth</button>
+  <button onclick="nav('threatintel')" data-nav="threatintel" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Threat Intel</button>
   <button onclick="nav('deep')" data-nav="deep" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Deep Inspection</button>
 </nav>
 
@@ -352,6 +353,45 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
   </div>
 </section>
 
+<!-- ═══════════ PANEL: THREAT INTEL (VirusTotal) ═══════════ -->
+<section id="p-threatintel" class="panel hidden space-y-4">
+  <div class="grid grid-cols-3 gap-3">
+    <div class="glass rounded-2xl p-5 text-center">
+      <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-2">IPs Enriched</div>
+      <div id="vt-enriched" class="text-3xl font-bold text-blue-400">--</div>
+      <div class="text-[10px] text-slate-600 mt-1">via VirusTotal</div>
+    </div>
+    <div class="glass rounded-2xl p-5 text-center">
+      <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Flagged Malicious</div>
+      <div id="vt-malicious" class="text-3xl font-bold text-red-400">0</div>
+      <div class="text-[10px] text-slate-600 mt-1">&ge;1 VT engine detection</div>
+    </div>
+    <div class="glass rounded-2xl p-5 text-center">
+      <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Flagged Suspicious</div>
+      <div id="vt-suspicious" class="text-3xl font-bold text-amber-400">0</div>
+      <div class="text-[10px] text-slate-600 mt-1">&ge;1 VT engine suspicious</div>
+    </div>
+  </div>
+  <div class="glass rounded-2xl p-6">
+    <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Remote IP Intelligence</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs">
+        <thead><tr class="text-slate-600 border-b border-slate-800/40">
+          <th class="text-left py-2 font-medium">IP Address</th>
+          <th class="text-left py-2 font-medium">Country</th>
+          <th class="text-left py-2 font-medium">AS Owner</th>
+          <th class="text-right py-2 font-medium">Malicious</th>
+          <th class="text-right py-2 font-medium">Suspicious</th>
+          <th class="text-right py-2 font-medium">Reputation</th>
+          <th class="text-center py-2 font-medium">Verdict</th>
+        </tr></thead>
+        <tbody id="vt-tbl" class="mono"></tbody>
+      </table>
+    </div>
+    <div id="vt-empty" class="hidden text-xs text-slate-600 py-4 text-center">No VT data yet — enrichment runs in background (4 lookups/min). Pass --vt-api-key or set VT_API_KEY to enable.</div>
+  </div>
+</section>
+
 <!-- ═══════════ PANEL: DEEP INSPECTION ═══════════ -->
 <section id="p-deep" class="panel hidden space-y-4">
   <div class="glass rounded-2xl p-6">
@@ -416,6 +456,7 @@ function calcScore(){
     [v('sentinel_forensic_memfd_execs_total')===0,'fileless execution detected',-25],
     [v('sentinel_auth_brute_force_ips')===0,'active brute force attacks',-8],
     [v('sentinel_kernel_modules_disabled')===1,'kernel module loading unlocked',-4],
+    [v('sentinel_vt_ips_flagged_malicious')===0||v('sentinel_vt_ips_flagged_malicious')==null,'malicious IPs communicating with host',-15],
   ];
   chk.forEach(([ok,msg,pen])=>{if(!ok){s+=pen;dd.push({msg,pen});}});
   return{score:Math.max(0,s),deductions:dd};
@@ -447,6 +488,10 @@ function buildNarrative(){
 
   const brute=v('sentinel_auth_brute_force_ips');
   if(brute>0)lines.push(`<span class="text-amber-400 font-medium">${brute} IP${brute>1?'s':''} actively brute-forcing SSH</span> with more than 10 failed attempts each.`);
+
+  const vtMal=v('sentinel_vt_ips_flagged_malicious'),vtEnr=v('sentinel_vt_ips_enriched');
+  if(vtEnr>0&&vtMal===0)lines.push(`VirusTotal enrichment: <strong>${vtEnr}</strong> remote IPs checked — <span class="text-emerald-400 font-medium">none flagged malicious</span>.`);
+  if(vtMal>0)lines.push(`<span class="text-red-400 font-semibold">⚠ VirusTotal: ${vtMal} remote IP${vtMal>1?'s':''} flagged as MALICIOUS</span> by at least one detection engine. Check Threat Intel tab for details.`);
 
   const listeners=A('sentinel_listen_socket');
   const exposed=listeners.filter(l=>l.labels.scope==='all');
@@ -741,6 +786,51 @@ function renderAuth(){
   ).join(''):'<div class="text-xs text-slate-600">No authorized keys found</div>';
 }
 
+function renderVt(){
+  const enriched=v('sentinel_vt_ips_enriched');
+  const malCount=v('sentinel_vt_ips_flagged_malicious');
+  const susCount=v('sentinel_vt_ips_flagged_suspicious');
+  document.getElementById('vt-enriched').textContent=enriched!=null?Math.round(enriched):'--';
+  document.getElementById('vt-malicious').textContent=Math.round(malCount||0);
+  document.getElementById('vt-suspicious').textContent=Math.round(susCount||0);
+
+  const ips=A('sentinel_vt_ip_malicious');
+  const repMap={};
+  A('sentinel_vt_ip_reputation').forEach(r=>{repMap[r.labels.ip]=r.value;});
+  const susMap={};
+  A('sentinel_vt_ip_suspicious').forEach(r=>{susMap[r.labels.ip]=r.value;});
+
+  const emptyEl=document.getElementById('vt-empty');
+  const tblEl=document.getElementById('vt-tbl');
+  if(!ips.length){
+    emptyEl.classList.remove('hidden');
+    tblEl.innerHTML='';
+    return;
+  }
+  emptyEl.classList.add('hidden');
+
+  const sorted=[...ips].sort((a,b)=>b.value-a.value);
+  tblEl.innerHTML=sorted.map(ip=>{
+    const mal=ip.value;
+    const sus=susMap[ip.labels.ip]||0;
+    const rep=repMap[ip.labels.ip]||0;
+    const isMal=mal>0;
+    const isSus=sus>0;
+    const verdict=isMal?'MALICIOUS':isSus?'SUSPICIOUS':'CLEAN';
+    const vCls=isMal?'text-red-400 bg-red-400/10 border-red-400/20':isSus?'text-amber-400 bg-amber-400/10 border-amber-400/20':'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+    const rowCls=isMal?'bg-red-950/10':'hover:bg-slate-800/20';
+    return`<tr class="border-b border-slate-800/30 ${rowCls} transition-colors">
+      <td class="py-2.5 ${isMal?'text-red-300':'text-slate-200'}">${ip.labels.ip}</td>
+      <td class="py-2.5 text-slate-400 font-sans">${ip.labels.country||'--'}</td>
+      <td class="py-2.5 text-slate-400 font-sans text-[11px]">${ip.labels.as_owner||'--'}</td>
+      <td class="py-2.5 text-right ${mal>0?'text-red-400 font-bold':'text-slate-500'}">${mal}</td>
+      <td class="py-2.5 text-right ${sus>0?'text-amber-400':'text-slate-500'}">${sus}</td>
+      <td class="py-2.5 text-right ${rep<0?'text-red-400':rep>0?'text-emerald-400':'text-slate-500'}">${rep}</td>
+      <td class="py-2.5 text-center"><span class="text-[10px] px-2.5 py-0.5 rounded-full border ${vCls}">${verdict}</span></td>
+    </tr>`;
+  }).join('');
+}
+
 function renderDeep(){
   const procs={};
   A('sentinel_process_cpu_user_seconds').forEach(s=>{procs[s.labels.pid]={pid:s.labels.pid,comm:s.labels.comm,utime:s.value};});
@@ -783,7 +873,7 @@ async function tick(){
     const cnt=Object.values(D).reduce((s,a)=>s+a.length,0);
     document.getElementById('metric-count').textContent=cnt+' metrics';
     document.getElementById('status-text').textContent='live';
-    renderHero();renderIntel();renderNetwork();renderForensics();renderAuth();renderDeep();
+    renderHero();renderIntel();renderNetwork();renderForensics();renderAuth();renderVt();renderDeep();
   }catch(e){
     document.getElementById('status-text').textContent='error';
   }
