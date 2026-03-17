@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SENTINEL</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','system-ui','sans-serif'],mono:['JetBrains Mono','Fira Code','monospace']},colors:{surface:{50:'#f8fafc',100:'#f1f5f9',800:'#111827',900:'#0b1120',950:'#060a14'},accent:{400:'#60a5fa',500:'#3b82f6',600:'#2563eb'},threat:{400:'#f87171',500:'#ef4444'},safe:{400:'#34d399',500:'#10b981'},warn:{400:'#fbbf24',500:'#f59e0b'}}}}}</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+.mono{font-family:'JetBrains Mono','Fira Code',monospace}
+
+/* Ambient background */
+.ambient{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.ambient::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at 30% 20%,rgba(59,130,246,0.03) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(16,185,129,0.02) 0%,transparent 50%);animation:ambientShift 20s ease-in-out infinite alternate}
+@keyframes ambientShift{0%{transform:translate(0,0)}100%{transform:translate(-3%,-2%)}}
+
+/* Glass cards */
+.glass{background:rgba(15,23,42,0.6);backdrop-filter:blur(20px);border:1px solid rgba(51,65,85,0.4);transition:all 0.3s cubic-bezier(0.4,0,0.2,1)}
+.glass:hover{border-color:rgba(71,85,105,0.6);background:rgba(15,23,42,0.7)}
+.glass-elevated{background:rgba(15,23,42,0.8);backdrop-filter:blur(24px);border:1px solid rgba(51,65,85,0.5)}
+
+/* Animated counter */
+.counter{display:inline-block;transition:all 0.6s cubic-bezier(0.16,1,0.3,1)}
+
+/* Radial gauge */
+.gauge-ring{transition:stroke-dashoffset 1.2s cubic-bezier(0.16,1,0.3,1)}
+
+/* Pulse animation */
+.pulse-live{position:relative}
+.pulse-live::before{content:'';position:absolute;top:50%;left:50%;width:8px;height:8px;border-radius:50%;background:#34d399;transform:translate(-50%,-50%);animation:livePulse 2s ease-in-out infinite}
+.pulse-live::after{content:'';position:absolute;top:50%;left:50%;width:8px;height:8px;border-radius:50%;background:#34d399;transform:translate(-50%,-50%);animation:livePulseRing 2s ease-in-out infinite}
+@keyframes livePulse{0%,100%{opacity:1}50%{opacity:0.5}}
+@keyframes livePulseRing{0%{width:8px;height:8px;opacity:0.8}100%{width:24px;height:24px;opacity:0}}
+
+/* Threat glow */
+.threat-glow{box-shadow:0 0 30px -5px rgba(239,68,68,0.15),inset 0 1px 0 rgba(239,68,68,0.1)}
+.safe-glow{box-shadow:0 0 30px -5px rgba(16,185,129,0.1),inset 0 1px 0 rgba(16,185,129,0.1)}
+
+/* Slide transitions */
+.slide-up{animation:slideUp 0.5s cubic-bezier(0.16,1,0.3,1) both}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* Narrative typing */
+.narrative-line{opacity:0;animation:narrativeFade 0.4s ease forwards}
+@keyframes narrativeFade{to{opacity:1}}
+
+/* Tab indicator */
+.tab-active{color:#e2e8f0;position:relative}
+.tab-active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:linear-gradient(90deg,#3b82f6,#60a5fa);border-radius:1px}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(51,65,85,0.5);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:rgba(71,85,105,0.7)}
+
+/* Bar animation */
+.bar-fill{transition:width 0.8s cubic-bezier(0.16,1,0.3,1)}
+
+/* Activity dot */
+.activity-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* Grid lines */
+.grid-bg{background-image:radial-gradient(rgba(51,65,85,0.3) 1px,transparent 1px);background-size:24px 24px}
+</style>
+</head>
+<body>
+<div class="ambient"></div>
+
+<div class="relative z-10 max-w-[1440px] mx-auto px-6 py-5">
+
+<!-- ═══════════ HEADER ═══════════ -->
+<header class="flex items-center justify-between mb-8 slide-up">
+  <div class="flex items-center gap-3">
+    <div class="relative w-9 h-9">
+      <svg viewBox="0 0 36 36" class="w-9 h-9">
+        <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(59,130,246,0.2)" stroke-width="1.5"/>
+        <circle cx="18" cy="18" r="16" fill="none" stroke="url(#hgrad)" stroke-width="1.5" stroke-dasharray="100" stroke-dashoffset="25" stroke-linecap="round" class="gauge-ring"/>
+        <defs><linearGradient id="hgrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#34d399"/></linearGradient></defs>
+      </svg>
+      <div class="absolute inset-0 flex items-center justify-center">
+        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      </div>
+    </div>
+    <div>
+      <div class="text-sm font-semibold tracking-tight text-white">SENTINEL</div>
+      <div class="text-[10px] text-slate-500 mono tracking-wider">SECURITY INTELLIGENCE</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-6 text-xs">
+    <div class="flex items-center gap-2">
+      <div class="pulse-live w-4 h-4"></div>
+      <span class="text-slate-400 ml-1" id="status-text">initializing</span>
+    </div>
+    <div class="text-slate-600 mono" id="clock">--:--:--</div>
+    <div class="text-slate-600 mono" id="metric-count">--</div>
+  </div>
+</header>
+
+<!-- ═══════════ HERO: SECURITY POSTURE + VITALS ═══════════ -->
+<div class="grid grid-cols-12 gap-4 mb-6">
+
+  <!-- Security Score Gauge -->
+  <div class="col-span-3 glass rounded-2xl p-6 flex flex-col items-center justify-center slide-up" style="animation-delay:0.05s">
+    <div class="relative w-36 h-36 mb-3">
+      <svg viewBox="0 0 120 120" class="w-36 h-36 -rotate-90">
+        <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(30,41,59,0.8)" stroke-width="6"/>
+        <circle id="score-arc" cx="60" cy="60" r="52" fill="none" stroke="url(#scoreGrad)" stroke-width="6" stroke-dasharray="327" stroke-dashoffset="327" stroke-linecap="round" class="gauge-ring"/>
+        <defs>
+          <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#3b82f6"/>
+            <stop offset="50%" stop-color="#60a5fa"/>
+            <stop offset="100%" stop-color="#34d399"/>
+          </linearGradient>
+          <linearGradient id="scoreGradWarn" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#f59e0b"/>
+            <stop offset="100%" stop-color="#ef4444"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <div class="absolute inset-0 flex flex-col items-center justify-center">
+        <span id="score-val" class="text-3xl font-bold text-white tracking-tight">--</span>
+        <span class="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">posture</span>
+      </div>
+    </div>
+    <div id="score-label" class="text-xs font-medium text-slate-400">Calculating...</div>
+    <div id="score-deductions" class="mt-2 space-y-0.5 text-center"></div>
+  </div>
+
+  <!-- Vitals Grid -->
+  <div class="col-span-5 grid grid-cols-2 gap-3 slide-up" style="animation-delay:0.1s">
+    <div class="glass rounded-2xl p-5 group">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[10px] text-slate-500 uppercase tracking-widest">CPU Load</span>
+        <svg class="w-3.5 h-3.5 text-blue-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      </div>
+      <div id="v-cpu" class="text-2xl font-bold text-white tracking-tight">--</div>
+      <div id="v-cpu-sub" class="text-[11px] text-slate-500 mt-1 mono">--</div>
+      <div id="cpu-spark" class="mt-3 h-10"></div>
+    </div>
+    <div class="glass rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[10px] text-slate-500 uppercase tracking-widest">Memory</span>
+        <svg class="w-3.5 h-3.5 text-violet-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+      </div>
+      <div id="v-mem" class="text-2xl font-bold text-white tracking-tight">--</div>
+      <div id="v-mem-sub" class="text-[11px] text-slate-500 mt-1 mono">--</div>
+      <div id="mem-spark" class="mt-3 h-10"></div>
+    </div>
+    <div class="glass rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[10px] text-slate-500 uppercase tracking-widest">Network</span>
+        <svg class="w-3.5 h-3.5 text-emerald-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      </div>
+      <div id="v-net" class="text-2xl font-bold text-white tracking-tight">--</div>
+      <div id="v-net-sub" class="text-[11px] text-slate-500 mt-1 mono">--</div>
+    </div>
+    <div class="glass rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[10px] text-slate-500 uppercase tracking-widest">Pressure</span>
+        <svg class="w-3.5 h-3.5 text-amber-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+      </div>
+      <div id="v-psi" class="text-2xl font-bold text-white tracking-tight">--</div>
+      <div id="v-psi-sub" class="text-[11px] text-slate-500 mt-1 mono">--</div>
+    </div>
+  </div>
+
+  <!-- Narrative Intelligence -->
+  <div class="col-span-4 glass rounded-2xl p-6 slide-up" style="animation-delay:0.15s">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+      <span class="text-[10px] text-slate-500 uppercase tracking-widest">Intelligence Narrative</span>
+    </div>
+    <div id="narrative" class="space-y-2.5 text-[13px] leading-relaxed text-slate-300"></div>
+  </div>
+</div>
+
+<!-- ═══════════ ALERT STRIP ═══════════ -->
+<div id="alert-strip" class="hidden mb-6 glass threat-glow rounded-xl px-5 py-3 slide-up">
+  <div class="flex items-center gap-3">
+    <div class="w-2 h-2 rounded-full bg-red-400 animate-pulse flex-shrink-0"></div>
+    <span id="alert-text" class="text-sm text-red-200 font-medium"></span>
+  </div>
+</div>
+
+<!-- ═══════════ NAVIGATION TABS ═══════════ -->
+<nav class="flex gap-1 mb-6 border-b border-slate-800/60">
+  <button onclick="nav('intel')" data-nav="intel" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Intelligence</button>
+  <button onclick="nav('network')" data-nav="network" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Network</button>
+  <button onclick="nav('forensics')" data-nav="forensics" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Forensics</button>
+  <button onclick="nav('auth')" data-nav="auth" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Auth</button>
+  <button onclick="nav('deep')" data-nav="deep" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Deep Inspection</button>
+</nav>
+
+<!-- ═══════════ PANEL: INTELLIGENCE ═══════════ -->
+<section id="p-intel" class="panel space-y-4">
+  <div class="grid grid-cols-12 gap-4">
+    <!-- Kernel Hardening Matrix -->
+    <div class="col-span-4 glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Kernel Hardening Matrix</h3>
+      <div id="hardening-matrix" class="space-y-3"></div>
+    </div>
+    <!-- Capabilities & Seccomp -->
+    <div class="col-span-4 glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Privileged Processes</h3>
+      <div id="caps-panel" class="space-y-2 max-h-[340px] overflow-y-auto"></div>
+    </div>
+    <!-- Entropy & FD -->
+    <div class="col-span-4 glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">System Resources</h3>
+      <div class="space-y-6">
+        <div>
+          <div class="flex justify-between text-xs mb-2"><span class="text-slate-500">Entropy Pool</span><span id="ent-val" class="mono text-slate-300">--</span></div>
+          <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden"><div id="ent-bar" class="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-400 bar-fill" style="width:0"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mb-2"><span class="text-slate-500">File Descriptors</span><span id="fd-val" class="mono text-slate-300">--</span></div>
+          <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden"><div id="fd-bar" class="h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-400 bar-fill" style="width:0"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mb-2"><span class="text-slate-500">Uptime</span><span id="uptime-val" class="mono text-slate-300">--</span></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mb-2"><span class="text-slate-500">Kernel Modules</span><span id="kmod-count" class="mono text-slate-300">--</span></div>
+        </div>
+        <div id="unseccomp-summary" class="pt-3 border-t border-slate-800/60">
+          <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Without Seccomp</div>
+          <div id="seccomp-count" class="text-2xl font-bold text-amber-400">--</div>
+          <div class="text-[11px] text-slate-600">processes unconfined</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ PANEL: NETWORK ═══════════ -->
+<section id="p-network" class="panel hidden space-y-4">
+  <div class="grid grid-cols-12 gap-4">
+    <div class="col-span-8 glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Listening Services</h3>
+      <table class="w-full text-xs">
+        <thead><tr class="text-slate-600 border-b border-slate-800/40">
+          <th class="text-left py-2 font-medium">Service</th>
+          <th class="text-left py-2 font-medium">Bind</th>
+          <th class="text-left py-2 font-medium">Port</th>
+          <th class="text-left py-2 font-medium">Proto</th>
+          <th class="text-left py-2 font-medium">Exposure</th>
+        </tr></thead>
+        <tbody id="listen-tbl" class="mono"></tbody>
+      </table>
+    </div>
+    <div class="col-span-4 space-y-4">
+      <div class="glass rounded-2xl p-6">
+        <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Connections</h3>
+        <div id="conn-stats" class="space-y-3"></div>
+      </div>
+      <div class="glass rounded-2xl p-6">
+        <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Conntrack</h3>
+        <div id="conntrack-panel"></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-4">
+    <div class="glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Remote Peers</h3>
+      <div id="peers-panel" class="space-y-1.5 max-h-[260px] overflow-y-auto"></div>
+    </div>
+    <div class="glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">TCP State Distribution</h3>
+      <div id="tcp-chart" class="h-52"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ PANEL: FORENSICS ═══════════ -->
+<section id="p-forensics" class="panel hidden space-y-4">
+  <div class="grid grid-cols-2 gap-4">
+    <div class="glass rounded-2xl p-6" id="deleted-card">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="activity-dot bg-red-400"></div>
+        <h3 class="text-[10px] text-red-400/80 uppercase tracking-widest">Deleted Binaries in Memory</h3>
+      </div>
+      <div id="deleted-panel"></div>
+    </div>
+    <div class="glass rounded-2xl p-6" id="memfd-card">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="activity-dot bg-red-400"></div>
+        <h3 class="text-[10px] text-red-400/80 uppercase tracking-widest">Fileless Execution (memfd)</h3>
+      </div>
+      <div id="memfd-panel"></div>
+    </div>
+  </div>
+  <div class="grid grid-cols-3 gap-4">
+    <div class="glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">SUID/SGID Inventory</h3>
+      <div id="suid-panel" class="space-y-1 max-h-[280px] overflow-y-auto"></div>
+    </div>
+    <div class="glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">/dev/shm Staging Area</h3>
+      <div id="shm-panel"></div>
+    </div>
+    <div class="glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Suspicious Command Lines</h3>
+      <div id="cmdline-panel"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ PANEL: AUTH ═══════════ -->
+<section id="p-auth" class="panel hidden space-y-4">
+  <div class="grid grid-cols-4 gap-3">
+    <div class="glass rounded-2xl p-5 text-center">
+      <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Failed SSH</div>
+      <div id="a-failed" class="text-3xl font-bold text-red-400">0</div>
+    </div>
+    <div class="glass rounded-2xl p-5 text-center">
+      <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Accepted</div>
+      <div id="a-accepted" class="text-3xl font-bold text-emerald-400">0</div>
+    </div>
+    <div class="glass rounded-2xl p-5 text-center">
+      <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Brute Force IPs</div>
+      <div id="a-brute" class="text-3xl font-bold text-amber-400">0</div>
+    </div>
+    <div class="glass rounded-2xl p-5 text-center">
+      <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Sessions Now</div>
+      <div id="a-sessions" class="text-3xl font-bold text-blue-400">0</div>
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-4">
+    <div class="glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Attack Surface — Top Source IPs</h3>
+      <div id="brute-ip-chart" class="h-64"></div>
+    </div>
+    <div class="glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Targeted Usernames</h3>
+      <div id="brute-users-panel" class="space-y-2 max-h-[240px] overflow-y-auto"></div>
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-4">
+    <div class="glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Active Sessions</h3>
+      <div id="sessions-panel" class="space-y-2"></div>
+    </div>
+    <div class="glass rounded-2xl p-6">
+      <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">SSH Authorized Keys</h3>
+      <div id="authkeys-panel" class="space-y-2"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ PANEL: DEEP INSPECTION ═══════════ -->
+<section id="p-deep" class="panel hidden space-y-4">
+  <div class="glass rounded-2xl p-6">
+    <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Top Processes — Resource Consumption</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs">
+        <thead><tr class="text-slate-600 border-b border-slate-800/40">
+          <th class="text-left py-2 font-medium w-16">PID</th>
+          <th class="text-left py-2 font-medium">Command</th>
+          <th class="text-right py-2 font-medium">CPU</th>
+          <th class="text-right py-2 font-medium">Memory</th>
+          <th class="text-right py-2 font-medium">Threads</th>
+          <th class="text-right py-2 font-medium">FDs</th>
+          <th class="text-right py-2 font-medium">Disk R</th>
+          <th class="text-right py-2 font-medium">Disk W</th>
+        </tr></thead>
+        <tbody id="proc-tbl" class="mono"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="glass rounded-2xl p-6">
+    <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Kernel Modules</h3>
+    <div class="grid grid-cols-4 gap-2 max-h-[300px] overflow-y-auto" id="modules-grid"></div>
+  </div>
+</section>
+
+</div>
+
+<script>
+// ─── State ───
+const API = window.location.pathname.replace(/\/$/,'') + '/api/metrics';
+let D = {}, cpuH = [], memH = [], charts = {};
+
+// ─── Helpers ───
+function v(n,l){const a=D[n];if(!a)return null;const s=l?a.find(s=>{for(const[k,v]of Object.entries(l))if(s.labels[k]!==v)return false;return true}):a.find(s=>Object.keys(s.labels).length===0);return s?s.value:null;}
+function A(n){return D[n]||[];}
+function fmt(b){if(b==null)return'--';const u=['B','KB','MB','GB','TB'];let i=0;while(b>=1024&&i<u.length-1){b/=1024;i++;}return b.toFixed(1)+u[i];}
+function pct(a,b){return b?((a/b)*100).toFixed(1):0;}
+function dur(s){if(!s)return'--';const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60);return d>0?`${d}d ${h}h`:h>0?`${h}h ${m}m`:`${m}m`;}
+
+// ─── Navigation ───
+function nav(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
+  document.getElementById('p-'+id).classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(b=>{b.classList.remove('tab-active');b.classList.add('text-slate-600','hover:text-slate-400');});
+  const btn=document.querySelector(`[data-nav="${id}"]`);
+  btn.classList.add('tab-active');btn.classList.remove('text-slate-600','hover:text-slate-400');
+}
+
+// ─── Security Score ───
+function calcScore(){
+  let s=100,dd=[];
+  const chk=[
+    [v('sentinel_kernel_aslr')===2,'ASLR not full randomization',-15],
+    [v('sentinel_kernel_ptrace_scope')>=1,'ptrace unrestricted',-10],
+    [v('sentinel_kernel_kptr_restrict')>=1,'kernel pointers exposed',-5],
+    [v('sentinel_kernel_dmesg_restrict')===1,'dmesg unrestricted',-5],
+    [v('sentinel_net_ipv4_forward')===0,'IP forwarding enabled',-8],
+    [v('sentinel_net_accept_redirects')===0,'ICMP redirects accepted',-5],
+    [v('sentinel_net_tcp_syncookies')===1,'SYN cookies disabled',-5],
+    [v('sentinel_forensic_deleted_binaries_total')===0,'deleted binaries in memory',-20],
+    [v('sentinel_forensic_memfd_execs_total')===0,'fileless execution detected',-25],
+    [v('sentinel_auth_brute_force_ips')===0,'active brute force attacks',-8],
+    [v('sentinel_kernel_modules_disabled')===1,'kernel module loading unlocked',-4],
+  ];
+  chk.forEach(([ok,msg,pen])=>{if(!ok){s+=pen;dd.push({msg,pen});}});
+  return{score:Math.max(0,s),deductions:dd};
+}
+
+// ─── Narrative Engine ───
+function buildNarrative(){
+  const lines=[];
+  const up=v('sentinel_uptime_seconds');
+  if(up)lines.push(`System has been running for <strong>${dur(up)}</strong>.`);
+
+  const load=v('sentinel_load1');
+  if(load!=null){
+    const desc=load<0.5?'idle':load<1.5?'under light load':load<3?'moderately loaded':'under heavy load';
+    lines.push(`CPU is <strong>${desc}</strong> with a 1-minute load average of <strong>${load.toFixed(2)}</strong>.`);
+  }
+
+  const mt=v('sentinel_memory_total_bytes'),ma=v('sentinel_memory_available_bytes');
+  if(mt&&ma){
+    const pct=((mt-ma)/mt*100).toFixed(0);
+    lines.push(`Memory utilization is at <strong>${pct}%</strong> — ${fmt(mt-ma)} of ${fmt(mt)} consumed.`);
+  }
+
+  const del=v('sentinel_forensic_deleted_binaries_total');
+  if(del>0)lines.push(`<span class="text-red-400 font-medium">⚠ ${del} process${del>1?'es':''} running from deleted binaries</span> — the original executables were removed from disk while still in memory. This commonly occurs after package updates, but can also indicate tampering.`);
+
+  const memfd=v('sentinel_forensic_memfd_execs_total');
+  if(memfd>0)lines.push(`<span class="text-red-400 font-semibold">CRITICAL: ${memfd} fileless execution${memfd>1?'s':''} detected via memfd_create</span> — code is running entirely from anonymous memory with no file on disk. This is a strong indicator of in-memory malware.`);
+
+  const brute=v('sentinel_auth_brute_force_ips');
+  if(brute>0)lines.push(`<span class="text-amber-400 font-medium">${brute} IP${brute>1?'s':''} actively brute-forcing SSH</span> with more than 10 failed attempts each.`);
+
+  const listeners=A('sentinel_listen_socket');
+  const exposed=listeners.filter(l=>l.labels.scope==='all');
+  if(exposed.length)lines.push(`<strong>${exposed.length}</strong> service${exposed.length>1?'s':''} exposed to all interfaces: ${exposed.map(l=>`<span class="mono text-blue-400">:${l.labels.port}</span>`).join(', ')}.`);
+
+  const fwd=v('sentinel_net_ipv4_forward');
+  if(fwd===1)lines.push(`IP forwarding is <strong>enabled</strong> — this machine can route packets between networks.`);
+
+  const peers=v('sentinel_unique_remote_peers');
+  if(peers!=null)lines.push(`Currently communicating with <strong>${peers}</strong> unique remote peer${peers!==1?'s':''}.`);
+
+  return lines;
+}
+
+// ─── Sparkline Charts ───
+function spark(el,data,color){
+  if(charts[el]){charts[el].updateSeries([{data}]);return;}
+  charts[el]=new ApexCharts(document.getElementById(el),{
+    series:[{data}],chart:{type:'area',height:40,sparkline:{enabled:true},animations:{enabled:true,easing:'easeinout',speed:600}},
+    stroke:{curve:'smooth',width:1.5,colors:[color]},
+    fill:{type:'gradient',gradient:{shadeIntensity:1,opacityFrom:0.3,opacityTo:0,stops:[0,100],colorStops:[{offset:0,color:color,opacity:0.25},{offset:100,color:color,opacity:0}]}},
+    tooltip:{enabled:false}
+  });
+  charts[el].render();
+}
+
+// ─── Renderers ───
+function renderHero(){
+  const {score,deductions}=calcScore();
+  const arc=document.getElementById('score-arc');
+  const offset=327-327*(score/100);
+  arc.style.strokeDashoffset=offset;
+  arc.setAttribute('stroke',score>=75?'url(#scoreGrad)':'url(#scoreGradWarn)');
+  document.getElementById('score-val').textContent=score;
+  document.getElementById('score-label').textContent=score>=90?'Excellent':score>=75?'Good':score>=50?'Needs Attention':'Critical';
+  document.getElementById('score-label').className='text-xs font-medium '+(score>=75?'text-emerald-400':score>=50?'text-amber-400':'text-red-400');
+  document.getElementById('score-deductions').innerHTML=deductions.slice(0,4).map(d=>
+    `<div class="text-[10px] text-red-400/70">${d.pen} — ${d.msg}</div>`
+  ).join('');
+
+  // Vitals
+  const load=v('sentinel_load1');
+  document.getElementById('v-cpu').textContent=load!=null?load.toFixed(2):'--';
+  document.getElementById('v-cpu-sub').textContent=`${v('sentinel_load5')?.toFixed(2)||'--'} / ${v('sentinel_load15')?.toFixed(2)||'--'} (5m/15m)`;
+  if(load!=null){cpuH.push(load);if(cpuH.length>40)cpuH.shift();spark('cpu-spark',cpuH,'#3b82f6');}
+
+  const mt=v('sentinel_memory_total_bytes'),ma=v('sentinel_memory_available_bytes');
+  if(mt&&ma){
+    const used=(mt-ma)/mt*100;
+    document.getElementById('v-mem').textContent=used.toFixed(0)+'%';
+    document.getElementById('v-mem-sub').textContent=`${fmt(mt-ma)} / ${fmt(mt)}`;
+    memH.push(used);if(memH.length>40)memH.shift();spark('mem-spark',memH,'#8b5cf6');
+  }
+
+  const est=v('sentinel_tcp_established'),peers=v('sentinel_unique_remote_peers');
+  document.getElementById('v-net').textContent=est!=null?Math.round(est):'--';
+  document.getElementById('v-net-sub').textContent=`${peers||0} remote peers`;
+
+  const psi=v('sentinel_psi_avg10',{resource:'io',type:'some'});
+  document.getElementById('v-psi').textContent=psi!=null?psi.toFixed(1)+'%':'--';
+  const psiCpu=v('sentinel_psi_avg10',{resource:'cpu',type:'some'});
+  document.getElementById('v-psi-sub').textContent=`cpu ${psiCpu?.toFixed(1)||'--'}% / io ${psi?.toFixed(1)||'--'}%`;
+
+  // Narrative
+  const lines=buildNarrative();
+  document.getElementById('narrative').innerHTML=lines.map((l,i)=>
+    `<div class="narrative-line" style="animation-delay:${i*0.1}s">${l}</div>`
+  ).join('');
+
+  // Alerts
+  const alerts=[];
+  if(v('sentinel_forensic_deleted_binaries_total')>0)alerts.push('Deleted binaries running in memory');
+  if(v('sentinel_forensic_memfd_execs_total')>0)alerts.push('Fileless execution detected');
+  if(v('sentinel_auth_brute_force_ips')>0)alerts.push(`${v('sentinel_auth_brute_force_ips')} IPs brute-forcing SSH`);
+  const strip=document.getElementById('alert-strip');
+  if(alerts.length){strip.classList.remove('hidden');document.getElementById('alert-text').textContent=alerts.join(' · ');}
+  else strip.classList.add('hidden');
+
+  // Clock
+  document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false});
+}
+
+function renderIntel(){
+  const hardening=[
+    ['ASLR',v('sentinel_kernel_aslr'),x=>x===2,x=>x===2?'Full':x===1?'Partial':'Off'],
+    ['ptrace_scope',v('sentinel_kernel_ptrace_scope'),x=>x>=1,x=>['None','Restricted','Admin','NoAttach'][x]||'?'],
+    ['kptr_restrict',v('sentinel_kernel_kptr_restrict'),x=>x>=1,x=>x>=1?'Hidden':'Exposed'],
+    ['dmesg_restrict',v('sentinel_kernel_dmesg_restrict'),x=>x===1,x=>x?'Yes':'No'],
+    ['modules_disabled',v('sentinel_kernel_modules_disabled'),x=>x===1,x=>x?'Locked':'Open'],
+    ['SYN cookies',v('sentinel_net_tcp_syncookies'),x=>x===1,x=>x?'On':'Off'],
+    ['IP forwarding',v('sentinel_net_ipv4_forward'),x=>x===0,x=>x?'Enabled':'Disabled'],
+    ['rp_filter',v('sentinel_net_rp_filter'),x=>x>=1,x=>x>=1?'Active':'Off'],
+    ['accept_redirects',v('sentinel_net_accept_redirects'),x=>x===0,x=>x?'Yes':'No'],
+  ];
+  document.getElementById('hardening-matrix').innerHTML=hardening.map(([name,val,okFn,fmtFn])=>{
+    if(val==null)return'';
+    const ok=okFn(val);
+    const cls=ok?'text-emerald-400 bg-emerald-400/10 border-emerald-400/20':'text-red-400 bg-red-400/10 border-red-400/20';
+    return`<div class="flex items-center justify-between group">
+      <span class="text-xs text-slate-400">${name}</span>
+      <span class="text-[10px] mono px-2.5 py-0.5 rounded-full border ${cls}">${fmtFn(val)}</span>
+    </div>`;
+  }).join('');
+
+  // Caps
+  const caps=A('sentinel_sec_process_has_caps');
+  document.getElementById('caps-panel').innerHTML=caps.length?caps.map(c=>
+    `<div class="flex items-center justify-between text-xs py-1.5 px-3 rounded-lg bg-slate-900/40 group hover:bg-slate-800/60 transition-colors">
+      <div><span class="text-slate-200">${c.labels.comm}</span> <span class="text-slate-600 mono text-[10px]">${c.labels.pid}</span></div>
+      <span class="mono text-[10px] text-amber-400/80">${c.labels.cap_eff.slice(-8)}</span>
+    </div>`
+  ).join(''):'<div class="text-xs text-slate-600">No privileged non-root processes</div>';
+
+  // Entropy, FD, etc
+  const ent=v('sentinel_entropy_available'),pool=v('sentinel_entropy_poolsize');
+  document.getElementById('ent-val').textContent=ent!=null?`${ent}${pool?' / '+pool:''}`:'--';
+  document.getElementById('ent-bar').style.width=ent&&pool?pct(ent,pool)+'%':'0';
+  const fda=v('sentinel_fs_file_nr_allocated'),fdm=v('sentinel_fs_file_nr_max');
+  document.getElementById('fd-val').textContent=fda!=null?`${fda.toLocaleString()}${fdm?' / '+fdm.toLocaleString():''}`:'--';
+  document.getElementById('fd-bar').style.width=fda&&fdm?pct(fda,fdm)+'%':'0';
+  document.getElementById('uptime-val').textContent=dur(v('sentinel_uptime_seconds'));
+  document.getElementById('kmod-count').textContent=A('sentinel_kernel_module').length+' loaded';
+  document.getElementById('seccomp-count').textContent=A('sentinel_sec_no_seccomp').length;
+}
+
+function renderNetwork(){
+  const ls=A('sentinel_listen_socket').sort((a,b)=>parseInt(a.labels.port)-parseInt(b.labels.port));
+  document.getElementById('listen-tbl').innerHTML=ls.map(l=>{
+    const exposed=l.labels.scope==='all';
+    return`<tr class="border-b border-slate-800/30 hover:bg-slate-800/20 transition-colors">
+      <td class="py-2 text-slate-200">${l.labels.comm!=='?'?l.labels.comm:'<span class="text-slate-600">unknown</span>'}</td>
+      <td class="py-2 text-slate-500 mono">${l.labels.addr}</td>
+      <td class="py-2 ${exposed?'text-amber-400':'text-blue-400'} font-medium">${l.labels.port}</td>
+      <td class="py-2 text-slate-500">${l.labels.proto}</td>
+      <td class="py-2"><span class="text-[10px] px-2 py-0.5 rounded-full border ${exposed?'text-amber-400 border-amber-400/30 bg-amber-400/10':'text-slate-500 border-slate-700 bg-slate-800/40'}">${exposed?'public':'local'}</span></td>
+    </tr>`;
+  }).join('');
+
+  const peers=A('sentinel_remote_peer_connections').sort((a,b)=>b.value-a.value);
+  const maxP=peers.length?peers[0].value:1;
+  document.getElementById('peers-panel').innerHTML=peers.map(p=>
+    `<div class="flex items-center gap-3 text-xs py-1">
+      <span class="mono text-slate-300 w-32 flex-shrink-0">${p.labels.remote_ip}</span>
+      <div class="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-blue-500/60 rounded-full bar-fill" style="width:${pct(p.value,maxP)}%"></div></div>
+      <span class="mono text-blue-400 w-8 text-right">${p.value}</span>
+    </div>`
+  ).join('')||'<div class="text-xs text-slate-600">No remote peers</div>';
+
+  // Connection stats
+  document.getElementById('conn-stats').innerHTML=[
+    ['Established',v('sentinel_tcp_established'),'text-blue-400'],
+    ['Retransmits',v('sentinel_tcp_retransmits_total'),'text-amber-400'],
+    ['Active Opens',v('sentinel_tcp_active_opens_total'),'text-slate-300'],
+    ['Passive Opens',v('sentinel_tcp_passive_opens_total'),'text-slate-300'],
+    ['Listeners',A('sentinel_listen_socket').length,'text-emerald-400'],
+    ['Unique Peers',v('sentinel_unique_remote_peers'),'text-blue-400'],
+  ].map(([l,val,cls])=>`<div class="flex justify-between text-xs"><span class="text-slate-500">${l}</span><span class="mono ${cls}">${val!=null?Math.round(val):'--'}</span></div>`).join('');
+
+  const ct=v('sentinel_conntrack_entries'),cm=v('sentinel_conntrack_max');
+  document.getElementById('conntrack-panel').innerHTML=ct!=null?`
+    <div class="text-2xl font-bold text-white">${ct.toLocaleString()}</div>
+    <div class="text-[11px] text-slate-500 mono">${cm?'/ '+cm.toLocaleString()+' max':''}</div>
+    ${cm?`<div class="mt-2 h-1.5 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-blue-500/60 rounded-full bar-fill" style="width:${pct(ct,cm)}%"></div></div>`:''}
+  `:'<div class="text-xs text-slate-600">conntrack not available</div>';
+
+  // TCP chart
+  const states=A('sentinel_tcp_connections');
+  if(states.length){
+    const colorMap={ESTABLISHED:'#3b82f6',TIME_WAIT:'#f59e0b',LISTEN:'#22c55e',CLOSE_WAIT:'#ef4444',SYN_SENT:'#8b5cf6',SYN_RECV:'#a78bfa',FIN_WAIT1:'#64748b',FIN_WAIT2:'#64748b',LAST_ACK:'#94a3b8',CLOSING:'#64748b'};
+    if(charts.tcp){charts.tcp.updateSeries([{data:states.map(s=>({x:s.labels.state,y:s.value}))}]);}
+    else{
+      charts.tcp=new ApexCharts(document.getElementById('tcp-chart'),{
+        series:[{data:states.map(s=>({x:s.labels.state,y:s.value}))}],
+        chart:{type:'bar',height:200,toolbar:{show:false},background:'transparent',animations:{enabled:true,easing:'easeinout',speed:600}},
+        plotOptions:{bar:{borderRadius:4,horizontal:true,barHeight:'60%'}},
+        colors:[function({value,seriesIndex,dataPointIndex,w}){const state=w.config.series[0].data[dataPointIndex]?.x;return colorMap[state]||'#475569';}],
+        xaxis:{labels:{style:{colors:'#64748b',fontSize:'10px',fontFamily:'JetBrains Mono'}}},
+        yaxis:{labels:{style:{colors:'#94a3b8',fontSize:'10px',fontFamily:'JetBrains Mono'}}},
+        grid:{borderColor:'rgba(51,65,85,0.3)',strokeDashArray:3},
+        dataLabels:{enabled:false},
+        tooltip:{theme:'dark'}
+      });
+      charts.tcp.render();
+    }
+  }
+}
+
+function renderForensics(){
+  const del=A('sentinel_forensic_deleted_binary');
+  const delCard=document.getElementById('deleted-card');
+  delCard.className=del.length?'glass rounded-2xl p-6 threat-glow':'glass rounded-2xl p-6 safe-glow';
+  document.getElementById('deleted-panel').innerHTML=del.length?del.map(d=>
+    `<div class="p-3 rounded-xl bg-red-950/20 border border-red-900/30 mb-2">
+      <div class="flex items-center gap-2"><div class="activity-dot bg-red-400 animate-pulse"></div>
+        <span class="text-sm font-medium text-red-200">${d.labels.comm}</span>
+        <span class="mono text-[10px] text-red-400/50">PID ${d.labels.pid}</span>
+      </div>
+      <div class="mono text-[11px] text-red-400/60 mt-1.5 break-all leading-relaxed">${d.labels.exe}</div>
+    </div>`
+  ).join(''):`<div class="flex items-center gap-2 text-emerald-400 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> No deleted binaries detected</div>`;
+
+  const mfd=A('sentinel_forensic_memfd_exec');
+  const mfdCard=document.getElementById('memfd-card');
+  mfdCard.className=mfd.length?'glass rounded-2xl p-6 threat-glow':'glass rounded-2xl p-6 safe-glow';
+  document.getElementById('memfd-panel').innerHTML=mfd.length?mfd.map(d=>
+    `<div class="p-3 rounded-xl bg-red-950/20 border border-red-900/30 mb-2">
+      <div class="text-sm font-medium text-red-200">${d.labels.comm} <span class="mono text-[10px] text-red-400/50">${d.labels.pid}</span></div>
+      <div class="mono text-[11px] text-red-400/60 mt-1">${d.labels.exe}</div>
+    </div>`
+  ).join(''):`<div class="flex items-center gap-2 text-emerald-400 text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> No fileless execution detected</div>`;
+
+  const suids=A('sentinel_forensic_suid_binary');
+  document.getElementById('suid-panel').innerHTML=suids.map(s=>{
+    const crit=s.labels.severity==='critical';
+    return`<div class="flex items-center justify-between text-[11px] mono py-1.5 px-2.5 rounded-lg ${crit?'bg-red-950/30 text-red-300':'bg-slate-900/30 text-slate-400'} hover:bg-slate-800/40 transition-colors">
+      <span class="truncate mr-2">${s.labels.path}</span>
+      <span class="flex-shrink-0 text-[10px] ${crit?'text-red-500':'text-slate-600'}">${s.labels.type}</span>
+    </div>`;
+  }).join('');
+
+  const shm=A('sentinel_forensic_shm_file');
+  document.getElementById('shm-panel').innerHTML=shm.length?shm.map(s=>
+    `<div class="text-[11px] mono py-1.5 px-2.5 rounded-lg bg-slate-900/30 ${s.labels.executable==='true'?'text-red-400':'text-slate-400'} flex justify-between">
+      <span class="truncate">${s.labels.path}</span><span>${fmt(parseFloat(s.labels.size_bytes))}</span>
+    </div>`
+  ).join(''):'<div class="text-xs text-slate-600">/dev/shm is empty</div>';
+
+  const cmds=A('sentinel_forensic_suspicious_cmdline');
+  document.getElementById('cmdline-panel').innerHTML=cmds.length?cmds.map(c=>
+    `<div class="p-2.5 rounded-lg bg-amber-950/15 border border-amber-900/20 mb-2">
+      <div class="text-xs text-amber-300">${c.labels.comm} <span class="text-amber-500/50 mono">${c.labels.pid}</span></div>
+      <div class="mono text-[10px] text-amber-400/50 mt-1 break-all">${c.labels.cmdline}</div>
+    </div>`
+  ).join(''):'<div class="text-xs text-slate-600">No suspicious patterns detected</div>';
+}
+
+function renderAuth(){
+  document.getElementById('a-failed').textContent=Math.round(v('sentinel_auth_ssh_failed_total')||0);
+  document.getElementById('a-accepted').textContent=Math.round(v('sentinel_auth_ssh_accepted_total')||0);
+  document.getElementById('a-brute').textContent=Math.round(v('sentinel_auth_brute_force_ips')||0);
+  document.getElementById('a-sessions').textContent=Math.round(v('sentinel_auth_users_logged_in')||0);
+
+  // Brute IPs chart
+  const ips=A('sentinel_auth_failed_by_ip').sort((a,b)=>b.value-a.value).slice(0,15);
+  if(ips.length){
+    const cfg={
+      series:[{name:'Attempts',data:ips.map(i=>i.value)}],
+      chart:{type:'bar',height:250,toolbar:{show:false},background:'transparent',animations:{enabled:true,easing:'easeinout'}},
+      plotOptions:{bar:{borderRadius:3,horizontal:true,barHeight:'65%'}},
+      colors:['#ef4444'],
+      xaxis:{categories:ips.map(i=>i.labels.ip),labels:{style:{colors:'#64748b',fontSize:'10px',fontFamily:'JetBrains Mono'}}},
+      yaxis:{labels:{style:{colors:'#94a3b8',fontSize:'10px',fontFamily:'JetBrains Mono'}}},
+      grid:{borderColor:'rgba(51,65,85,0.3)',strokeDashArray:3},
+      dataLabels:{enabled:true,style:{fontSize:'10px',fontFamily:'JetBrains Mono',colors:['#fca5a5']},offsetX:5},
+      tooltip:{theme:'dark'}
+    };
+    if(charts.bruteIp){charts.bruteIp.updateOptions(cfg);}
+    else{charts.bruteIp=new ApexCharts(document.getElementById('brute-ip-chart'),cfg);charts.bruteIp.render();}
+  } else {
+    document.getElementById('brute-ip-chart').innerHTML='<div class="flex items-center justify-center h-full text-slate-600 text-sm">No brute force activity detected</div>';
+  }
+
+  // Users
+  const users=A('sentinel_auth_failed_by_user').sort((a,b)=>b.value-a.value).slice(0,15);
+  const maxU=users.length?users[0].value:1;
+  document.getElementById('brute-users-panel').innerHTML=users.length?users.map(u=>
+    `<div class="flex items-center gap-3 text-xs">
+      <span class="mono text-slate-300 w-28 flex-shrink-0">${u.labels.user}</span>
+      <div class="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-red-500/50 rounded-full bar-fill" style="width:${pct(u.value,maxU)}%"></div></div>
+      <span class="mono text-red-400 w-8 text-right">${u.value}</span>
+    </div>`
+  ).join(''):'<div class="text-xs text-slate-600">No targeted usernames</div>';
+
+  // Sessions
+  const sess=A('sentinel_auth_active_session');
+  document.getElementById('sessions-panel').innerHTML=sess.length?sess.map(s=>
+    `<div class="flex items-center gap-4 text-xs py-2 px-3 rounded-lg bg-slate-900/40">
+      <div class="activity-dot bg-emerald-400"></div>
+      <span class="text-emerald-300 font-medium w-20">${s.labels.user}</span>
+      <span class="mono text-slate-500">${s.labels.tty}</span>
+      <span class="mono text-slate-400 ml-auto">${s.labels.from}</span>
+    </div>`
+  ).join(''):'<div class="text-xs text-slate-600">No active sessions</div>';
+
+  // Keys
+  const keys=A('sentinel_auth_authorized_keys');
+  document.getElementById('authkeys-panel').innerHTML=keys.length?keys.map(k=>
+    `<div class="flex justify-between text-xs py-2 px-3 rounded-lg bg-slate-900/40">
+      <span class="text-slate-300">${k.labels.user}</span>
+      <span class="mono text-blue-400">${k.value} key${k.value!==1?'s':''}</span>
+    </div>`
+  ).join(''):'<div class="text-xs text-slate-600">No authorized keys found</div>';
+}
+
+function renderDeep(){
+  const procs={};
+  A('sentinel_process_cpu_user_seconds').forEach(s=>{procs[s.labels.pid]={pid:s.labels.pid,comm:s.labels.comm,utime:s.value};});
+  A('sentinel_process_cpu_system_seconds').forEach(s=>{if(procs[s.labels.pid])procs[s.labels.pid].stime=s.value;});
+  A('sentinel_process_rss_bytes').forEach(s=>{if(procs[s.labels.pid])procs[s.labels.pid].rss=s.value;});
+  A('sentinel_process_threads').forEach(s=>{if(procs[s.labels.pid])procs[s.labels.pid].threads=s.value;});
+  A('sentinel_process_open_fds').forEach(s=>{if(procs[s.labels.pid])procs[s.labels.pid].fds=s.value;});
+  A('sentinel_process_read_bytes_total').forEach(s=>{if(procs[s.labels.pid])procs[s.labels.pid].read=s.value;});
+  A('sentinel_process_write_bytes_total').forEach(s=>{if(procs[s.labels.pid])procs[s.labels.pid].write=s.value;});
+  const sorted=Object.values(procs).sort((a,b)=>((b.utime||0)+(b.stime||0))-((a.utime||0)+(a.stime||0)));
+
+  document.getElementById('proc-tbl').innerHTML=sorted.map(p=>
+    `<tr class="border-b border-slate-800/30 hover:bg-slate-800/20 transition-colors">
+      <td class="py-2 text-slate-500">${p.pid}</td>
+      <td class="py-2 text-slate-200 font-sans font-medium text-xs">${p.comm}</td>
+      <td class="py-2 text-right text-blue-400">${((p.utime||0)+(p.stime||0)).toFixed(1)}s</td>
+      <td class="py-2 text-right text-violet-400">${fmt(p.rss)}</td>
+      <td class="py-2 text-right text-slate-400">${p.threads?.toFixed(0)||'--'}</td>
+      <td class="py-2 text-right text-slate-400">${p.fds?.toFixed(0)||'--'}</td>
+      <td class="py-2 text-right text-slate-500">${fmt(p.read)}</td>
+      <td class="py-2 text-right text-slate-500">${fmt(p.write)}</td>
+    </tr>`
+  ).join('');
+
+  const mods=A('sentinel_kernel_module').sort((a,b)=>parseInt(b.labels.size)-parseInt(a.labels.size));
+  document.getElementById('modules-grid').innerHTML=mods.map(m=>
+    `<div class="text-[10px] mono py-1.5 px-2.5 rounded-lg bg-slate-900/40 text-slate-400 hover:bg-slate-800/50 transition-colors flex justify-between">
+      <span class="truncate">${m.labels.name}</span>
+      <span class="text-slate-600 ml-1">${(parseInt(m.labels.size)/1024).toFixed(0)}K</span>
+    </div>`
+  ).join('');
+}
+
+// ─── Main Loop ───
+async function tick(){
+  try{
+    const r=await fetch(API);
+    if(!r.ok)throw new Error(r.status);
+    D=await r.json();
+    const cnt=Object.values(D).reduce((s,a)=>s+a.length,0);
+    document.getElementById('metric-count').textContent=cnt+' metrics';
+    document.getElementById('status-text').textContent='live';
+    renderHero();renderIntel();renderNetwork();renderForensics();renderAuth();renderDeep();
+  }catch(e){
+    document.getElementById('status-text').textContent='error';
+  }
+}
+
+nav('intel');
+tick();
+setInterval(tick,10000);
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false});},1000);
+</script>
+</body>
+</html>

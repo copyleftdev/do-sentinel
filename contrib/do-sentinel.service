@@ -1,0 +1,22 @@
+[Unit]
+Description=do-sentinel security metrics agent
+After=network.target
+Documentation=https://github.com/do-sentinel/do-sentinel
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/do-sentinel --no-store
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Hardening
+NoNewPrivileges=false
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=/proc /sys /var/log
+ReadWritePaths=/var/lib/do-sentinel
+
+[Install]
+WantedBy=multi-user.target

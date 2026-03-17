@@ -1,0 +1,28 @@
+[package]
+name = "do-sentinel"
+version = "0.1.0"
+edition = "2021"
+description = "Lightweight Linux security metrics agent with Prometheus endpoint and embedded analytics dashboard"
+license = "MIT"
+readme = "README.md"
+keywords = ["security", "metrics", "prometheus", "linux", "monitoring"]
+categories = ["command-line-utilities", "os::linux-apis"]
+rust-version = "1.70"
+
+[[bin]]
+name = "do-sentinel"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+sled = "0.34"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+chrono = "0.4"
+nix = { version = "0.29", features = ["fs"] }
+clap = { version = "4", features = ["derive"] }
+tokio-rustls = "0.26"
+rustls-pemfile = "2"
