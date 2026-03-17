@@ -10,18 +10,61 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+
+/* ─── Theme Variables ─── */
+:root{
+  --bg:rgb(6,10,20);--bg-surface:rgba(15,23,42,0.6);--bg-surface-hover:rgba(15,23,42,0.7);
+  --bg-elevated:rgba(15,23,42,0.8);--bg-inset:rgba(15,23,42,0.4);
+  --border:rgba(51,65,85,0.4);--border-hover:rgba(71,85,105,0.6);--border-subtle:rgba(30,41,59,0.3);
+  --text:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;--text-faint:#475569;
+  --text-white:#fff;--bar-bg:rgba(30,41,59,0.8);
+  --ambient1:rgba(59,130,246,0.03);--ambient2:rgba(16,185,129,0.02);
+  --tab-active:#e2e8f0;--tab-inactive:#64748b;
+  --scrollbar:rgba(51,65,85,0.5);--scrollbar-hover:rgba(71,85,105,0.7);
+  --gauge-track:rgba(30,41,59,0.8);--score-text:#fff;
+  --threat-glow:0 0 30px -5px rgba(239,68,68,0.15),inset 0 1px 0 rgba(239,68,68,0.1);
+  --safe-glow:0 0 30px -5px rgba(16,185,129,0.1),inset 0 1px 0 rgba(16,185,129,0.1);
+}
+.light{
+  --bg:#f1f5f9;--bg-surface:rgba(255,255,255,0.75);--bg-surface-hover:rgba(255,255,255,0.9);
+  --bg-elevated:rgba(255,255,255,0.92);--bg-inset:rgba(241,245,249,0.7);
+  --border:rgba(203,213,225,0.6);--border-hover:rgba(148,163,184,0.5);--border-subtle:rgba(226,232,240,0.6);
+  --text:#1e293b;--text-secondary:#475569;--text-muted:#64748b;--text-faint:#94a3b8;
+  --text-white:#0f172a;--bar-bg:#e2e8f0;
+  --ambient1:rgba(59,130,246,0.06);--ambient2:rgba(16,185,129,0.04);
+  --tab-active:#1e293b;--tab-inactive:#94a3b8;
+  --scrollbar:rgba(148,163,184,0.4);--scrollbar-hover:rgba(100,116,139,0.5);
+  --gauge-track:rgba(226,232,240,0.8);--score-text:#0f172a;
+  --threat-glow:0 0 20px -5px rgba(239,68,68,0.12);
+  --safe-glow:0 0 20px -5px rgba(16,185,129,0.08);
+}
+/* Light mode text overrides for Tailwind inline classes */
+.light .text-white{color:var(--text-white)!important}
+.light .text-slate-200,.light .text-slate-300{color:#334155!important}
+.light .text-slate-400{color:#64748b!important}
+.light .text-slate-500{color:#94a3b8!important}
+.light .text-slate-600{color:#94a3b8!important}
+.light .text-slate-700{color:#334155!important}
+.light .border-slate-800\/60,.light .border-slate-800\/40,.light .border-slate-800\/30{border-color:rgba(203,213,225,0.5)!important}
+.light .bg-slate-900\/40,.light .bg-slate-900\/30,.light .bg-slate-800\/40{background:rgba(241,245,249,0.6)!important}
+.light .hover\:bg-slate-800\/20:hover,.light .hover\:bg-slate-800\/60:hover{background:rgba(226,232,240,0.5)!important}
+.light .bg-red-950\/20,.light .bg-red-950\/30,.light .bg-red-950\/10{background:rgba(254,226,226,0.5)!important}
+.light .bg-amber-950\/15{background:rgba(254,243,199,0.5)!important}
+.light .border-red-900\/30{border-color:rgba(252,165,165,0.4)!important}
+.light .border-amber-900\/20{border-color:rgba(253,224,71,0.4)!important}
+
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;-webkit-font-smoothing:antialiased;transition:background 0.4s,color 0.4s}
 .mono{font-family:'JetBrains Mono','Fira Code',monospace}
 
 /* Ambient background */
 .ambient{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
-.ambient::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at 30% 20%,rgba(59,130,246,0.03) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(16,185,129,0.02) 0%,transparent 50%);animation:ambientShift 20s ease-in-out infinite alternate}
+.ambient::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at 30% 20%,var(--ambient1) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,var(--ambient2) 0%,transparent 50%);animation:ambientShift 20s ease-in-out infinite alternate}
 @keyframes ambientShift{0%{transform:translate(0,0)}100%{transform:translate(-3%,-2%)}}
 
 /* Glass cards */
-.glass{background:rgba(15,23,42,0.6);backdrop-filter:blur(20px);border:1px solid rgba(51,65,85,0.4);transition:all 0.3s cubic-bezier(0.4,0,0.2,1)}
-.glass:hover{border-color:rgba(71,85,105,0.6);background:rgba(15,23,42,0.7)}
-.glass-elevated{background:rgba(15,23,42,0.8);backdrop-filter:blur(24px);border:1px solid rgba(51,65,85,0.5)}
+.glass{background:var(--bg-surface);backdrop-filter:blur(20px);border:1px solid var(--border);transition:all 0.3s cubic-bezier(0.4,0,0.2,1)}
+.glass:hover{border-color:var(--border-hover);background:var(--bg-surface-hover)}
+.glass-elevated{background:var(--bg-elevated);backdrop-filter:blur(24px);border:1px solid var(--border)}
 
 /* Animated counter */
 .counter{display:inline-block;transition:all 0.6s cubic-bezier(0.16,1,0.3,1)}
@@ -37,8 +80,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
 @keyframes livePulseRing{0%{width:8px;height:8px;opacity:0.8}100%{width:24px;height:24px;opacity:0}}
 
 /* Threat glow */
-.threat-glow{box-shadow:0 0 30px -5px rgba(239,68,68,0.15),inset 0 1px 0 rgba(239,68,68,0.1)}
-.safe-glow{box-shadow:0 0 30px -5px rgba(16,185,129,0.1),inset 0 1px 0 rgba(16,185,129,0.1)}
+.threat-glow{box-shadow:var(--threat-glow)}
+.safe-glow{box-shadow:var(--safe-glow)}
 
 /* Slide transitions */
 .slide-up{animation:slideUp 0.5s cubic-bezier(0.16,1,0.3,1) both}
@@ -49,14 +92,14 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
 @keyframes narrativeFade{to{opacity:1}}
 
 /* Tab indicator */
-.tab-active{color:#e2e8f0;position:relative}
+.tab-active{color:var(--tab-active);position:relative}
 .tab-active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:linear-gradient(90deg,#3b82f6,#60a5fa);border-radius:1px}
 
 /* Scrollbar */
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(51,65,85,0.5);border-radius:2px}
-::-webkit-scrollbar-thumb:hover{background:rgba(71,85,105,0.7)}
+::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover)}
 
 /* Bar animation */
 .bar-fill{transition:width 0.8s cubic-bezier(0.16,1,0.3,1)}
@@ -65,16 +108,25 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
 .activity-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
 /* Grid lines */
-.grid-bg{background-image:radial-gradient(rgba(51,65,85,0.3) 1px,transparent 1px);background-size:24px 24px}
+.grid-bg{background-image:radial-gradient(var(--border) 1px,transparent 1px);background-size:24px 24px}
+
+/* Theme toggle */
+.theme-toggle{cursor:pointer;background:var(--bg-surface);border:1px solid var(--border);border-radius:9999px;padding:6px;transition:all 0.3s;display:flex;align-items:center;justify-content:center}
+.theme-toggle:hover{border-color:var(--border-hover);background:var(--bg-surface-hover)}
+.theme-toggle svg{width:14px;height:14px;color:var(--text-muted);transition:color 0.3s}
+
+/* ─── Mobile-first nav ─── */
+.nav-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.nav-scroll::-webkit-scrollbar{display:none}
 </style>
 </head>
 <body>
 <div class="ambient"></div>
 
-<div class="relative z-10 max-w-[1440px] mx-auto px-6 py-5">
+<div class="relative z-10 max-w-[1440px] mx-auto px-3 sm:px-6 py-4 sm:py-5">
 
 <!-- ═══════════ HEADER ═══════════ -->
-<header class="flex items-center justify-between mb-8 slide-up">
+<header class="flex flex-wrap items-center justify-between gap-3 mb-6 sm:mb-8 slide-up">
   <div class="flex items-center gap-3">
     <div class="relative w-9 h-9">
       <svg viewBox="0 0 36 36" class="w-9 h-9">
@@ -91,21 +143,25 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
       <div class="text-[10px] text-slate-500 mono tracking-wider">SECURITY INTELLIGENCE</div>
     </div>
   </div>
-  <div class="flex items-center gap-6 text-xs">
+  <div class="flex items-center gap-3 sm:gap-6 text-xs">
     <div class="flex items-center gap-2">
       <div class="pulse-live w-4 h-4"></div>
       <span class="text-slate-400 ml-1" id="status-text">initializing</span>
     </div>
     <div class="text-slate-600 mono" id="clock">--:--:--</div>
-    <div class="text-slate-600 mono" id="metric-count">--</div>
+    <div class="text-slate-600 mono hidden sm:block" id="metric-count">--</div>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" id="theme-btn">
+      <svg id="theme-icon-sun" class="hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+      <svg id="theme-icon-moon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+    </button>
   </div>
 </header>
 
 <!-- ═══════════ HERO: SECURITY POSTURE + VITALS ═══════════ -->
-<div class="grid grid-cols-12 gap-4 mb-6">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 mb-4 sm:mb-6">
 
   <!-- Security Score Gauge -->
-  <div class="col-span-3 glass rounded-2xl p-6 flex flex-col items-center justify-center slide-up" style="animation-delay:0.05s">
+  <div class="col-span-1 lg:col-span-3 glass rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center slide-up" style="animation-delay:0.05s">
     <div class="relative w-36 h-36 mb-3">
       <svg viewBox="0 0 120 120" class="w-36 h-36 -rotate-90">
         <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(30,41,59,0.8)" stroke-width="6"/>
@@ -132,7 +188,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
   </div>
 
   <!-- Vitals Grid -->
-  <div class="col-span-5 grid grid-cols-2 gap-3 slide-up" style="animation-delay:0.1s">
+  <div class="col-span-1 lg:col-span-5 grid grid-cols-2 gap-2 sm:gap-3 slide-up" style="animation-delay:0.1s">
     <div class="glass rounded-2xl p-5 group">
       <div class="flex items-center justify-between mb-3">
         <span class="text-[10px] text-slate-500 uppercase tracking-widest">CPU Load</span>
@@ -170,7 +226,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
   </div>
 
   <!-- Narrative Intelligence -->
-  <div class="col-span-4 glass rounded-2xl p-6 slide-up" style="animation-delay:0.15s">
+  <div class="col-span-1 lg:col-span-4 glass rounded-2xl p-4 sm:p-6 slide-up" style="animation-delay:0.15s">
     <div class="flex items-center gap-2 mb-4">
       <div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
       <span class="text-[10px] text-slate-500 uppercase tracking-widest">Intelligence Narrative</span>
@@ -188,30 +244,30 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
 </div>
 
 <!-- ═══════════ NAVIGATION TABS ═══════════ -->
-<nav class="flex gap-1 mb-6 border-b border-slate-800/60">
-  <button onclick="nav('intel')" data-nav="intel" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Intelligence</button>
-  <button onclick="nav('network')" data-nav="network" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Network</button>
-  <button onclick="nav('forensics')" data-nav="forensics" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Forensics</button>
-  <button onclick="nav('auth')" data-nav="auth" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Auth</button>
-  <button onclick="nav('threatintel')" data-nav="threatintel" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Threat Intel</button>
-  <button onclick="nav('deep')" data-nav="deep" class="nav-btn px-5 py-2.5 text-xs font-medium tracking-wide transition-colors rounded-t-lg">Deep Inspection</button>
+<nav class="nav-scroll flex gap-1 mb-4 sm:mb-6 border-b border-slate-800/60">
+  <button onclick="nav('intel')" data-nav="intel" class="nav-btn flex-shrink-0 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-medium tracking-wide transition-colors rounded-t-lg">Intelligence</button>
+  <button onclick="nav('network')" data-nav="network" class="nav-btn flex-shrink-0 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-medium tracking-wide transition-colors rounded-t-lg">Network</button>
+  <button onclick="nav('forensics')" data-nav="forensics" class="nav-btn flex-shrink-0 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-medium tracking-wide transition-colors rounded-t-lg">Forensics</button>
+  <button onclick="nav('auth')" data-nav="auth" class="nav-btn flex-shrink-0 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-medium tracking-wide transition-colors rounded-t-lg">Auth</button>
+  <button onclick="nav('threatintel')" data-nav="threatintel" class="nav-btn flex-shrink-0 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-medium tracking-wide transition-colors rounded-t-lg">Threat Intel</button>
+  <button onclick="nav('deep')" data-nav="deep" class="nav-btn flex-shrink-0 px-3 sm:px-5 py-2 sm:py-2.5 text-[11px] sm:text-xs font-medium tracking-wide transition-colors rounded-t-lg">Deep Inspection</button>
 </nav>
 
 <!-- ═══════════ PANEL: INTELLIGENCE ═══════════ -->
-<section id="p-intel" class="panel space-y-4">
-  <div class="grid grid-cols-12 gap-4">
+<section id="p-intel" class="panel space-y-3 sm:space-y-4">
+  <div class="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4">
     <!-- Kernel Hardening Matrix -->
-    <div class="col-span-4 glass rounded-2xl p-6">
+    <div class="col-span-1 md:col-span-4 glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Kernel Hardening Matrix</h3>
       <div id="hardening-matrix" class="space-y-3"></div>
     </div>
     <!-- Capabilities & Seccomp -->
-    <div class="col-span-4 glass rounded-2xl p-6">
+    <div class="col-span-1 md:col-span-4 glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Privileged Processes</h3>
       <div id="caps-panel" class="space-y-2 max-h-[340px] overflow-y-auto"></div>
     </div>
     <!-- Entropy & FD -->
-    <div class="col-span-4 glass rounded-2xl p-6">
+    <div class="col-span-1 md:col-span-4 glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">System Resources</h3>
       <div class="space-y-6">
         <div>
@@ -239,9 +295,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
 </section>
 
 <!-- ═══════════ PANEL: NETWORK ═══════════ -->
-<section id="p-network" class="panel hidden space-y-4">
-  <div class="grid grid-cols-12 gap-4">
-    <div class="col-span-8 glass rounded-2xl p-6">
+<section id="p-network" class="panel hidden space-y-3 sm:space-y-4">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
+    <div class="col-span-1 lg:col-span-8 glass rounded-2xl p-4 sm:p-6 overflow-x-auto">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Listening Services</h3>
       <table class="w-full text-xs">
         <thead><tr class="text-slate-600 border-b border-slate-800/40">
@@ -254,23 +310,23 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
         <tbody id="listen-tbl" class="mono"></tbody>
       </table>
     </div>
-    <div class="col-span-4 space-y-4">
-      <div class="glass rounded-2xl p-6">
+    <div class="col-span-1 lg:col-span-4 space-y-3 sm:space-y-4">
+      <div class="glass rounded-2xl p-4 sm:p-6">
         <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Connections</h3>
         <div id="conn-stats" class="space-y-3"></div>
       </div>
-      <div class="glass rounded-2xl p-6">
+      <div class="glass rounded-2xl p-4 sm:p-6">
         <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Conntrack</h3>
         <div id="conntrack-panel"></div>
       </div>
     </div>
   </div>
-  <div class="grid grid-cols-2 gap-4">
-    <div class="glass rounded-2xl p-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+    <div class="glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Remote Peers</h3>
       <div id="peers-panel" class="space-y-1.5 max-h-[260px] overflow-y-auto"></div>
     </div>
-    <div class="glass rounded-2xl p-6">
+    <div class="glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">TCP State Distribution</h3>
       <div id="tcp-chart" class="h-52"></div>
     </div>
@@ -278,16 +334,16 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
 </section>
 
 <!-- ═══════════ PANEL: FORENSICS ═══════════ -->
-<section id="p-forensics" class="panel hidden space-y-4">
-  <div class="grid grid-cols-2 gap-4">
-    <div class="glass rounded-2xl p-6" id="deleted-card">
+<section id="p-forensics" class="panel hidden space-y-3 sm:space-y-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+    <div class="glass rounded-2xl p-4 sm:p-6" id="deleted-card">
       <div class="flex items-center gap-2 mb-4">
         <div class="activity-dot bg-red-400"></div>
         <h3 class="text-[10px] text-red-400/80 uppercase tracking-widest">Deleted Binaries in Memory</h3>
       </div>
       <div id="deleted-panel"></div>
     </div>
-    <div class="glass rounded-2xl p-6" id="memfd-card">
+    <div class="glass rounded-2xl p-4 sm:p-6" id="memfd-card">
       <div class="flex items-center gap-2 mb-4">
         <div class="activity-dot bg-red-400"></div>
         <h3 class="text-[10px] text-red-400/80 uppercase tracking-widest">Fileless Execution (memfd)</h3>
@@ -295,16 +351,16 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
       <div id="memfd-panel"></div>
     </div>
   </div>
-  <div class="grid grid-cols-3 gap-4">
-    <div class="glass rounded-2xl p-6">
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+    <div class="glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">SUID/SGID Inventory</h3>
       <div id="suid-panel" class="space-y-1 max-h-[280px] overflow-y-auto"></div>
     </div>
-    <div class="glass rounded-2xl p-6">
+    <div class="glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">/dev/shm Staging Area</h3>
       <div id="shm-panel"></div>
     </div>
-    <div class="glass rounded-2xl p-6">
+    <div class="glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Suspicious Command Lines</h3>
       <div id="cmdline-panel"></div>
     </div>
@@ -312,8 +368,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
 </section>
 
 <!-- ═══════════ PANEL: AUTH ═══════════ -->
-<section id="p-auth" class="panel hidden space-y-4">
-  <div class="grid grid-cols-4 gap-3">
+<section id="p-auth" class="panel hidden space-y-3 sm:space-y-4">
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
     <div class="glass rounded-2xl p-5 text-center">
       <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-2">Failed SSH</div>
       <div id="a-failed" class="text-3xl font-bold text-red-400">0</div>
@@ -331,22 +387,22 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
       <div id="a-sessions" class="text-3xl font-bold text-blue-400">0</div>
     </div>
   </div>
-  <div class="grid grid-cols-2 gap-4">
-    <div class="glass rounded-2xl p-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+    <div class="glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Attack Surface — Top Source IPs</h3>
       <div id="brute-ip-chart" class="h-64"></div>
     </div>
-    <div class="glass rounded-2xl p-6">
+    <div class="glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Targeted Usernames</h3>
       <div id="brute-users-panel" class="space-y-2 max-h-[240px] overflow-y-auto"></div>
     </div>
   </div>
-  <div class="grid grid-cols-2 gap-4">
-    <div class="glass rounded-2xl p-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+    <div class="glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">Active Sessions</h3>
       <div id="sessions-panel" class="space-y-2"></div>
     </div>
-    <div class="glass rounded-2xl p-6">
+    <div class="glass rounded-2xl p-4 sm:p-6">
       <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-4">SSH Authorized Keys</h3>
       <div id="authkeys-panel" class="space-y-2"></div>
     </div>
@@ -354,8 +410,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
 </section>
 
 <!-- ═══════════ PANEL: THREAT INTEL (VirusTotal) ═══════════ -->
-<section id="p-threatintel" class="panel hidden space-y-4">
-  <div class="grid grid-cols-3 gap-3">
+<section id="p-threatintel" class="panel hidden space-y-3 sm:space-y-4">
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
     <div class="glass rounded-2xl p-5 text-center">
       <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-2">IPs Enriched</div>
       <div id="vt-enriched" class="text-3xl font-bold text-blue-400">--</div>
@@ -372,9 +428,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
       <div class="text-[10px] text-slate-600 mt-1">&ge;1 VT engine suspicious</div>
     </div>
   </div>
-  <div class="glass rounded-2xl p-6">
+  <div class="glass rounded-2xl p-4 sm:p-6">
     <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Remote IP Intelligence</h3>
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto -mx-2 px-2">
       <table class="w-full text-xs">
         <thead><tr class="text-slate-600 border-b border-slate-800/40">
           <th class="text-left py-2 font-medium">IP Address</th>
@@ -393,10 +449,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
 </section>
 
 <!-- ═══════════ PANEL: DEEP INSPECTION ═══════════ -->
-<section id="p-deep" class="panel hidden space-y-4">
-  <div class="glass rounded-2xl p-6">
+<section id="p-deep" class="panel hidden space-y-3 sm:space-y-4">
+  <div class="glass rounded-2xl p-4 sm:p-6">
     <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Top Processes — Resource Consumption</h3>
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto -mx-2 px-2">
       <table class="w-full text-xs">
         <thead><tr class="text-slate-600 border-b border-slate-800/40">
           <th class="text-left py-2 font-medium w-16">PID</th>
@@ -412,15 +468,41 @@ body{font-family:'Inter',system-ui,sans-serif;background:#060a14;color:#e2e8f0;o
       </table>
     </div>
   </div>
-  <div class="glass rounded-2xl p-6">
+  <div class="glass rounded-2xl p-4 sm:p-6">
     <h3 class="text-[10px] text-slate-500 uppercase tracking-widest mb-5">Kernel Modules</h3>
-    <div class="grid grid-cols-4 gap-2 max-h-[300px] overflow-y-auto" id="modules-grid"></div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[300px] overflow-y-auto" id="modules-grid"></div>
   </div>
 </section>
 
 </div>
 
 <script>
+// ─── Theme ───
+function getAutoTheme(){
+  const h=new Date().getHours();
+  return(h>=6&&h<18)?'light':'dark';
+}
+function applyTheme(mode){
+  const isLight=mode==='light';
+  document.body.classList.toggle('light',isLight);
+  document.getElementById('theme-icon-sun').classList.toggle('hidden',!isLight);
+  document.getElementById('theme-icon-moon').classList.toggle('hidden',isLight);
+  // Update gauge track and score text for theme
+  document.querySelectorAll('#score-arc').forEach(el=>{
+    el.closest('svg')?.querySelector('circle:first-child')?.setAttribute('stroke',isLight?'rgba(226,232,240,0.8)':'rgba(30,41,59,0.8)');
+  });
+  localStorage.setItem('sentinel-theme',mode);
+}
+function toggleTheme(){
+  const current=document.body.classList.contains('light')?'light':'dark';
+  applyTheme(current==='light'?'dark':'light');
+}
+// Init: use saved preference, else auto-detect from time of day
+(function(){
+  const saved=localStorage.getItem('sentinel-theme');
+  applyTheme(saved||getAutoTheme());
+})();
+
 // ─── State ───
 const API = window.location.pathname.replace(/\/$/,'') + '/api/metrics';
 let D = {}, cpuH = [], memH = [], charts = {};
